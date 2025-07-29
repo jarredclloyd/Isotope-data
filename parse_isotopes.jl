@@ -110,15 +110,22 @@ function parse_line_nubase(str::AbstractString)
 		hlu = missing
 	end
     #### parsing abundance
+    abundance = measurement(0.0, 0.0)
     if length(str)>122
-        abundance_raw = split(str[120:end])|>first|>x->split(x,";")|>first
-        if length(abundance_raw)>3 && abundance_raw[1:3]=="IS="
-            abundance = parse(Float64, abundance_raw[4:end])
-        else
-            abundance = 0.0
+        abundance_raw = String(split(str[120:end], ";")[1])
+        if length(abundance_raw) > 3 && abundance_raw[1:3] == "IS="
+            abundance_raw = String.(split(abundance_raw[4:end]))
+            if length(abundance_raw) > 1
+                decimals = length(split(abundance_raw[1], ".")[2])
+                abundance_val = parse(Float64, abundance_raw[1])
+                uncertainty = parse(Float64, abundance_raw[2]) * 10.0^-decimals
+                abundance = measurement(abundance_val, uncertainty)
+            else
+                abundance_val = parse(Float64, abundance_raw[1])
+                uncertainty = 0.0
+                abundance = measurement(abundance_val, uncertainty)
+            end
         end
-    else
-        abundance = 0.0
     end
     #### parsing radioactivity
     if !ismissing(hl) && hl==Inf*u"s"
