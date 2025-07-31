@@ -110,15 +110,21 @@ function parse_line_nubase(str::AbstractString)
 		hlu = missing
 	end
     #### parsing abundance
+    abundance = 0.0
+    abundance_uncertainty = missing
     if length(str)>122
-        abundance_raw = split(str[120:end])|>first|>x->split(x,";")|>first
-        if length(abundance_raw)>3 && abundance_raw[1:3]=="IS="
-            abundance = parse(Float64, abundance_raw[4:end])
-        else
-            abundance = 0.0
+        abundance_raw = String(split(str[120:end], ";")[1])
+        if length(abundance_raw) > 3 && abundance_raw[1:3] == "IS="
+            abundance_raw = String.(split(abundance_raw[4:end]))
+            if length(abundance_raw) > 1
+                decimals = length(split(abundance_raw[1], ".")[2])
+                abundance = parse(Float64, abundance_raw[1])
+                abundance_uncertainty = parse(Float64, abundance_raw[2]) * 10.0^-decimals
+            else
+                abundance = parse(Float64, abundance_raw[1])
+                abundance_uncertainty = missing
+            end
         end
-    else
-        abundance = 0.0
     end
     #### parsing radioactivity
     if !ismissing(hl) && hl==Inf*u"s"
@@ -135,7 +141,7 @@ function parse_line_nubase(str::AbstractString)
     else
         spin,parity=missing,missing
     end
-    return (nuclide=nuclide, atomic_number=atomic_number, mass_number=mass_number, is_radioactive=is_radioactive, half_life=hl, half_life_uncertainty=hlu, abundance=abundance, spin=spin, parity=parity)
+    return (nuclide=nuclide, atomic_number=atomic_number, mass_number=mass_number, is_radioactive=is_radioactive, half_life=hl, half_life_uncertainty=hlu, abundance=abundance, abundance_uncertainty=abundance_uncertainty, spin=spin, parity=parity)
 end
 
 function parse_nubase(filename::AbstractString)
@@ -248,6 +254,7 @@ select!(isotopes,
         :atomic_number,
         :mass_number,
         :abundance,
+        :abundance_uncertainty,
         :mass,
         :mass_uncertainty,
         :spin,
@@ -270,7 +277,7 @@ CSV.write("isotopes_data.csv", isotopes_csv; header = get_header(isotopes))
 
 
 select!(isotopes,
-        :name, :symbol, :isot_symbol, :atomic_number, :mass_number, :abundance,
+        :name, :symbol, :isot_symbol, :atomic_number, :mass_number, [:abundance, :abundance_uncertainty]=>ByRow((x,y)->measmiss(x,y))=>:abundance,
         [:mass, :mass_uncertainty]=>ByRow((x,y)->measmiss(x,y))=>:mass,
         :spin, :parity, :is_radioactive,
         [:half_life, :half_life_uncertainty]=>ByRow((x,y)->measmiss(x,y))=>:half_life,
