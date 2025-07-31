@@ -111,7 +111,7 @@ function parse_line_nubase(str::AbstractString)
 	end
     #### parsing abundance
     abundance = 0.0
-    abundance_uncertainty = missing
+    abundance_uncertainty = 0.0
     if length(str)>122
         abundance_raw = String(split(str[120:end], ";")[1])
         if length(abundance_raw) > 3 && abundance_raw[1:3] == "IS="
@@ -125,6 +125,9 @@ function parse_line_nubase(str::AbstractString)
                 abundance_uncertainty = missing
             end
         end
+    end
+    if abundance==100.0 && ismissing(abundance_uncertainty)
+        abundance_uncertainty = 0.0
     end
     #### parsing radioactivity
     if !ismissing(hl) && hl==Inf*u"s"
